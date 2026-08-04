@@ -14,11 +14,12 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 9.0.x
-    - name: Build & Install
-      working-directory: e2e/e2e
+    - name: Build test project
+      working-directory: e2e/e2e/CarvedRock.End2End.Tests
       run: dotnet build
-    - name: Ensure browsers are installed
-      run: ./e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/playwright.sh install --with-deps
-    - name: Run your tests
-      working-directory: e2e/e2e
-      run: dotnet test -s ./aca-firefox.runsettings
+    - name: Install Playwright Browsers
+      working-directory: e2e/e2e/CarvedRock.End2End.Tests
+      run: pwsh bin/Debug/net9.0/playwright.ps1 install --with-deps
+    - name: Run tests
+      working-directory: e2e/e2e/CarvedRock.End2End.Tests
+      run: dotnet test --no-build -s ../aca-firefox.runsettings
