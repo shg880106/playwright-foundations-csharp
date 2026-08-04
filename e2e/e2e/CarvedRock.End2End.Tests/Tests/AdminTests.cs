@@ -30,7 +30,8 @@ public class AdminTests : PageTest
         }
         var browserContext = await Browser.NewContextAsync(new BrowserNewContextOptions 
         {  
-            StorageStatePath = _authenticationStateFilename 
+            StorageStatePath = _authenticationStateFilename
+            IgnoreHTTPSErrors = true
         });
         _page = await browserContext.NewPageAsync();
 

@@ -9,8 +9,5 @@
 		<LaunchOptions>
 			<Headless>true</Headless>
 		</LaunchOptions>
-		<BrowserNewContextOptions>
-			<IgnoreHTTPSErrors>true</IgnoreHTTPSErrors>
-		</BrowserNewContextOptions>
 	</Playwright>
 </RunSettings>
