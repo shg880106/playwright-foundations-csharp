@@ -1,4 +1,4 @@
-name: Playwright Tests
+﻿name: Playwright Tests
 on:
   push:
     branches: [ main ]
@@ -41,45 +41,66 @@ jobs:
       working-directory: CarvedRock.Api
       run: dotnet build
     
+    - name: Run database migrations
+      working-directory: CarvedRock.Api
+      run: dotnet run --no-build --init-db-only || true
+      env:
+        ASPNETCORE_URLS: http://localhost:5213
+
     - name: Build WebApp
       working-directory: CarvedRock.WebApp
       run: dotnet build
     
     - name: Start API in background
       working-directory: CarvedRock.Api
-      run: dotnet run --no-build > /tmp/api.log 2>&1 &
+      run: |
+        nohup dotnet run --no-build > /tmp/api.log 2>&1 &
+        echo $! > /tmp/api.pid
       env:
         ASPNETCORE_URLS: http://localhost:5213
         
     - name: Start WebApp in background
       working-directory: CarvedRock.WebApp
-      run: dotnet run --no-build > /tmp/webapp.log 2>&1 &
+      run: |
+        nohup dotnet run --no-build > /tmp/webapp.log 2>&1 &
+        echo $! > /tmp/webapp.pid
       env:
         ASPNETCORE_URLS: http://localhost:5224
         services__apiservice__http__0: http://localhost:5213
     
     - name: Wait for services to be ready
       run: |
-        echo "Waiting for services to start..."
-        for i in {1..30}; do
-          if curl -s http://localhost:5213/swagger/index.html > /dev/null 2>&1; then
-            echo "API is ready"
+        echo "Waiting for API to start..."
+        for i in {1..60}; do
+          if curl -f -s http://localhost:5213/swagger/index.html > /dev/null 2>&1; then
+            echo "✅ API is ready"
             break
           fi
-          echo "Waiting for API... ($i/30)"
+          if [ $i -eq 60 ]; then
+            echo "❌ API failed to start. Logs:"
+            cat /tmp/api.log
+            exit 1
+          fi
+          echo "⏳ Waiting for API... ($i/60)"
           sleep 2
         done
         
-        for i in {1..30}; do
-          if curl -s http://localhost:5224 > /dev/null 2>&1; then
-            echo "WebApp is ready"
+        echo "Waiting for WebApp to start..."
+        for i in {1..60}; do
+          if curl -f -s http://localhost:5224 > /dev/null 2>&1; then
+            echo "✅ WebApp is ready"
             break
           fi
-          echo "Waiting for WebApp... ($i/30)"
+          if [ $i -eq 60 ]; then
+            echo "❌ WebApp failed to start. Logs:"
+            cat /tmp/webapp.log
+            exit 1
+          fi
+          echo "⏳ Waiting for WebApp... ($i/60)"
           sleep 2
         done
         
-        echo "Services should be ready now"
+        echo "✅ All services are ready!"
     
     - name: Build test project
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
@@ -92,30 +113,22 @@ jobs:
     - name: Run tests
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
       run: dotnet test --no-build -s ../.runsettings --logger "console;verbosity=detailed"
-      env:
-        BaseUrl: http://localhost:5224
-        ApiUrl: http://localhost:5213
-        
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: playwright-results
-        path: |
-          e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/playwright-results/
-          e2e/e2e/CarvedRock.End2End.Tests/TestResults/
-        retention-days: 7
     
-    - name: Show API logs on failure
+    - name: Show logs on failure
       if: failure()
       run: |
-        echo "=== API Logs ==="
+        echo "==================== API LOGS ===================="
         cat /tmp/api.log || echo "No API logs found"
-        echo "=== WebApp Logs ==="
+        echo ""
+        echo "==================== WEBAPP LOGS ===================="
         cat /tmp/webapp.log || echo "No WebApp logs found"
-    
+            
     - name: Stop services
       if: always()
       run: |
-        pkill -f "CarvedRock.Api" || true
-        pkill -f "CarvedRock.WebApp" || true
+        if [ -f /tmp/api.pid ]; then
+          kill $(cat /tmp/api.pid) || true
+        fi
+        if [ -f /tmp/webapp.pid ]; then
+          kill $(cat /tmp/webapp.pid) || true
+        fi
