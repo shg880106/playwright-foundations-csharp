@@ -41,12 +41,6 @@ jobs:
       working-directory: CarvedRock.Api
       run: dotnet build
     
-    - name: Run database migrations
-      working-directory: CarvedRock.Api
-      run: dotnet run --no-build --init-db-only || true
-      env:
-        ASPNETCORE_URLS: http://localhost:5213
-
     - name: Build WebApp
       working-directory: CarvedRock.WebApp
       run: dotnet build
@@ -56,6 +50,7 @@ jobs:
       run: |
         nohup dotnet run --no-build > /tmp/api.log 2>&1 &
         echo $! > /tmp/api.pid
+        echo "API started with PID: $(cat /tmp/api.pid)"
       env:
         ASPNETCORE_URLS: http://localhost:5213
         
@@ -64,11 +59,12 @@ jobs:
       run: |
         nohup dotnet run --no-build > /tmp/webapp.log 2>&1 &
         echo $! > /tmp/webapp.pid
+        echo "WebApp started with PID: $(cat /tmp/webapp.pid)"
       env:
         ASPNETCORE_URLS: http://localhost:5224
         services__apiservice__http__0: http://localhost:5213
     
-    - name: Wait for services to be ready
+    -  name: Wait for services to be ready
       run: |
         echo "Waiting for API to start..."
         for i in {1..60}; do
@@ -132,3 +128,14 @@ jobs:
         if [ -f /tmp/webapp.pid ]; then
           kill $(cat /tmp/webapp.pid) || true
         fi
+
+    - name: Upload test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-results
+        path: |
+          e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/playwright-results/
+          e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/test-results/
+          /tmp/*.log
+        retention-days: 7
