@@ -48,7 +48,7 @@ jobs:
     - name: Start API in background
       working-directory: CarvedRock.Api
       run: |
-        nohup dotnet run --no-build > /tmp/api.log 2>&1 &
+        nohup dotnet run --no-build --no-launch-profile > /tmp/api.log 2>&1 &
         echo $! > /tmp/api.pid
         echo "API started with PID: $(cat /tmp/api.pid)"
       env:
@@ -57,7 +57,7 @@ jobs:
     - name: Start WebApp in background
       working-directory: CarvedRock.WebApp
       run: |
-        nohup dotnet run --no-build > /tmp/webapp.log 2>&1 &
+        nohup dotnet run --no-build --no-launch-profile > /tmp/webapp.log 2>&1 &
         echo $! > /tmp/webapp.pid
         echo "WebApp started with PID: $(cat /tmp/webapp.pid)"
       env:
@@ -69,7 +69,7 @@ jobs:
         echo "Waiting for API to start..."
         for i in {1..60}; do
           if curl -f -s http://localhost:5213/swagger/index.html > /dev/null 2>&1; then
-            echo "✅ API is ready"
+            echo "✅ API is ready on http://localhost:5213"
             break
           fi
           if [ $i -eq 60 ]; then
@@ -84,7 +84,7 @@ jobs:
         echo "Waiting for WebApp to start..."
         for i in {1..60}; do
           if curl -f -s http://localhost:5224 > /dev/null 2>&1; then
-            echo "✅ WebApp is ready"
+            echo "✅ WebApp is ready on http://localhost:5224"
             break
           fi
           if [ $i -eq 60 ]; then
@@ -97,6 +97,8 @@ jobs:
         done
         
         echo "✅ All services are ready!"
+        echo "API: http://localhost:5213"
+        echo "WebApp: http://localhost:5224"
     
     - name: Build test project
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
@@ -123,9 +125,11 @@ jobs:
       if: always()
       run: |
         if [ -f /tmp/api.pid ]; then
+          echo "Stopping API (PID: $(cat /tmp/api.pid))"
           kill $(cat /tmp/api.pid) || true
         fi
         if [ -f /tmp/webapp.pid ]; then
+          echo "Stopping WebApp (PID: $(cat /tmp/webapp.pid))"
           kill $(cat /tmp/webapp.pid) || true
         fi
 
