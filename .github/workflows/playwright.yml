@@ -64,7 +64,7 @@ jobs:
         ASPNETCORE_URLS: http://localhost:5224
         services__apiservice__http__0: http://localhost:5213
     
-    -  name: Wait for services to be ready
+    - name: Wait for services to be ready
       run: |
         echo "Waiting for API to start..."
         for i in {1..60}; do
