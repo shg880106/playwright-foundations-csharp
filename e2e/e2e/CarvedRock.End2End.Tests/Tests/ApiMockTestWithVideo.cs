@@ -19,8 +19,9 @@ public class ApiMockTestWithVideo : PageTest
 
         var _browserContext = await browser.NewContextAsync(new BrowserNewContextOptions
         {
-            RecordVideoDir = "videos/"
-            });
+            RecordVideoDir = "videos/",
+            IgnoreHTTPSErrors = true
+        });
         
         _page = await _browserContext.NewPageAsync();
         await _browserContext.Tracing.StartAsync(new()
