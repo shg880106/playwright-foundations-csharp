@@ -26,7 +26,9 @@ jobs:
     env:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__CarvedRockPostgres: Host=localhost;Port=5432;Database=carvedrock;Username=postgres;Password=postgres
-      
+      TEST_BASEURL: http://localhost:5224
+      TEST_APIURL: http://localhost:5213
+
     steps:
     - uses: actions/checkout@v6
     
@@ -89,7 +91,7 @@ jobs:
     
     - name: Run tests
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
-      run: dotnet test --no-build --logger "console;verbosity=detailed" -- NUnit.BaseUrl=http://localhost:5224 NUnit.ApiUrl=http://localhost:5213
+      run: dotnet test --no-build -s ../.runsettings --logger "console;verbosity=detailed"
       env:
         BaseUrl: http://localhost:5224
         ApiUrl: http://localhost:5213
