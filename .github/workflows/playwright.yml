@@ -8,18 +8,117 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: carvedrock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__CarvedRockPostgres: Host=localhost;Port=5432;Database=carvedrock;Username=postgres;Password=postgres
+      ASPNETCORE_Kestrel__Certificates__Default__Password: password
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /tmp/dev-cert.pfx
+
     steps:
     - uses: actions/checkout@v6
+    
     - name: Setup dotnet
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 9.0.x
+    
+    - name: Generate dev certificate
+      run: |
+        dotnet dev-certs https -ep /tmp/dev-cert.pfx -p password
+        dotnet dev-certs https --trust
+
+    - name: Build API
+      working-directory: CarvedRock.Api
+      run: dotnet build
+    
+    - name: Build WebApp
+      working-directory: CarvedRock.WebApp
+      run: dotnet build
+    
+    - name: Start API in background
+      working-directory: CarvedRock.Api
+      run: dotnet run --no-build > /tmp/api.log 2>&1 &
+      env:
+        ASPNETCORE_URLS: https://localhost:7213;http://localhost:5213
+    
+    - name: Start WebApp in background
+      working-directory: CarvedRock.WebApp
+      run: dotnet run --no-build > /tmp/webapp.log 2>&1 &
+      env:
+        ASPNETCORE_URLS: https://localhost:7224;http://localhost:5224
+        services__apiservice__http__0: http://localhost:5213
+        services__apiservice__https__0: https://localhost:7213
+    
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for services to start..."
+        for i in {1..30}; do
+          if curl -k -s https://localhost:7213/swagger/index.html > /dev/null 2>&1; then
+            echo "API is ready"
+            break
+          fi
+          echo "Waiting for API... ($i/30)"
+          sleep 2
+        done
+        
+        for i in {1..30}; do
+          if curl -k -s https://localhost:7224 > /dev/null 2>&1; then
+            echo "WebApp is ready"
+            break
+          fi
+          echo "Waiting for WebApp... ($i/30)"
+          sleep 2
+        done
+        
+        echo "Services should be ready now"
+    
     - name: Build test project
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
       run: dotnet build
+    
     - name: Install Playwright Browsers
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
       run: pwsh bin/Debug/net9.0/playwright.ps1 install --with-deps
+    
     - name: Run tests
       working-directory: e2e/e2e/CarvedRock.End2End.Tests
       run: dotnet test --no-build -s ../.runsettings
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-results
+        path: |
+          e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/playwright-results/
+          e2e/e2e/CarvedRock.End2End.Tests/TestResults/
+        retention-days: 7
+    
+    - name: Show API logs on failure
+      if: failure()
+      run: |
+        echo "=== API Logs ==="
+        cat /tmp/api.log || echo "No API logs found"
+        echo "=== WebApp Logs ==="
+        cat /tmp/webapp.log || echo "No WebApp logs found"
+    
+    - name: Stop services
+      if: always()
+      run: |
+        pkill -f "CarvedRock.Api" || true
+        pkill -f "CarvedRock.WebApp" || true
