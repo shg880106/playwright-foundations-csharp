@@ -1,12 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <RunSettings>
-    <TestRunParameters>
-        <Parameter name="BaseUrl" value="https://localhost:7224" />
+	<TestRunParameters>
+		<Parameter name="BaseUrl" value="https://localhost:7224" />
 		<Parameter name="ApiUrl" value="https://localhost:7213" />
-    </TestRunParameters>
-	<!--<Playwright>
-		<BrowserName>chromium</BrowserName>
+	</TestRunParameters>
+	<Playwright>
+		<BrowserName>firefox</BrowserName>
 		<LaunchOptions>
-			<Channel>msedge</Channel>
+			<Headless>true</Headless>
 		</LaunchOptions>
-	</Playwright>-->
+		<BrowserNewContextOptions>
+			<IgnoreHTTPSErrors>true</IgnoreHTTPSErrors>
+		</BrowserNewContextOptions>
+	</Playwright>
 </RunSettings>
