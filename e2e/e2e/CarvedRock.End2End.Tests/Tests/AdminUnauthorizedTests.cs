@@ -30,6 +30,7 @@ public class AdminUnauthorizedTests : PageTest
         await Page.GetByPlaceholder("Username").PressAsync("Tab");
         await Page.GetByPlaceholder("Password").FillAsync("alice");
         await Page.GetByRole(AriaRole.Button, new() { Name = "Login" }).ClickAsync();
+        await Page.WaitForURLAsync($"{_baseUrl}**"); // wait for OAuth callback redirect to complete
 
         // ToBeHidden will succeed if the element exists but is not visible OR if it doesn't exist at all
         await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "Admin" })).ToBeHiddenAsync();
