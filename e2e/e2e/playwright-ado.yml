@@ -23,3 +23,6 @@ steps:
 - script: dotnet test -s ./.runsettings --configuration Release
   displayName: 'Run Tests'
   workingDirectory: e2e/e2e
+  env:
+    TEST_BASEURL: $(TEST_BASEURL)
+    TEST_APIURL: $(TEST_APIURL)
