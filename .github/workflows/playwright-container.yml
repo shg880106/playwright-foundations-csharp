@@ -34,6 +34,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+
+    - name: Install .NET 9 SDK
+      run: |
+        curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0
+        echo "DOTNET_ROOT=$HOME/.dotnet" >> $GITHUB_ENV
+        echo "$HOME/.dotnet" >> $GITHUB_PATH
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
         
     - name: Build API
       working-directory: CarvedRock.Api
