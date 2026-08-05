@@ -1,0 +1,144 @@
+﻿name: Playwright Tests - From Container
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright/dotnet:v1.49.0-noble
+      options: --user 1001
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: carvedrock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__CarvedRockPostgres: Host=postgres;Port=5432;Database=carvedrock;Username=postgres;Password=postgres
+      TEST_BASEURL: http://localhost:5224
+      TEST_APIURL: http://localhost:5213
+
+    steps:
+    - uses: actions/checkout@v6
+    
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 9.0.x
+        
+    - name: Build API
+      working-directory: CarvedRock.Api
+      run: dotnet build
+    
+    - name: Build WebApp
+      working-directory: CarvedRock.WebApp
+      run: dotnet build
+    
+    - name: Start API in background
+      working-directory: CarvedRock.Api
+      run: |
+        nohup dotnet run --no-build --no-launch-profile > /tmp/api.log 2>&1 &
+        echo $! > /tmp/api.pid
+        echo "API started with PID: $(cat /tmp/api.pid)"
+      env:
+        ASPNETCORE_URLS: http://localhost:5213
+        
+    - name: Start WebApp in background
+      working-directory: CarvedRock.WebApp
+      run: |
+        nohup dotnet run --no-build --no-launch-profile > /tmp/webapp.log 2>&1 &
+        echo $! > /tmp/webapp.pid
+        echo "WebApp started with PID: $(cat /tmp/webapp.pid)"
+      env:
+        ASPNETCORE_URLS: http://localhost:5224
+        CarvedRock__ApiBaseUrl: http://localhost:5213
+    
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for API to start..."
+        for i in {1..60}; do
+          if curl -f -s http://localhost:5213/swagger/index.html > /dev/null 2>&1; then
+            echo "✅ API is ready on http://localhost:5213"
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "❌ API failed to start. Logs:"
+            cat /tmp/api.log
+            exit 1
+          fi
+          echo "⏳ Waiting for API... ($i/60)"
+          sleep 2
+        done
+        
+        echo "Waiting for WebApp to start..."
+        for i in {1..60}; do
+          if curl -f -s http://localhost:5224 > /dev/null 2>&1; then
+            echo "✅ WebApp is ready on http://localhost:5224"
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "❌ WebApp failed to start. Logs:"
+            cat /tmp/webapp.log
+            exit 1
+          fi
+          echo "⏳ Waiting for WebApp... ($i/60)"
+          sleep 2
+        done
+        
+        echo "✅ All services are ready!"
+        echo "API: http://localhost:5213"
+        echo "WebApp: http://localhost:5224"
+    
+    - name: Build test project
+      working-directory: e2e/e2e/CarvedRock.End2End.Tests
+      run: dotnet build
+    
+    - name: Run tests
+      working-directory: e2e/e2e/CarvedRock.End2End.Tests
+      run: dotnet test --no-build -s ../.runsettings --logger "console;verbosity=detailed"
+    
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        echo "==================== API LOGS ===================="
+        cat /tmp/api.log || echo "No API logs found"
+        echo ""
+        echo "==================== WEBAPP LOGS ===================="
+        cat /tmp/webapp.log || echo "No WebApp logs found"
+            
+    - name: Stop services
+      if: always()
+      run: |
+        if [ -f /tmp/api.pid ]; then
+          echo "Stopping API (PID: $(cat /tmp/api.pid))"
+          kill $(cat /tmp/api.pid) || true
+        fi
+        if [ -f /tmp/webapp.pid ]; then
+          echo "Stopping WebApp (PID: $(cat /tmp/webapp.pid))"
+          kill $(cat /tmp/webapp.pid) || true
+        fi
+
+    - name: Upload test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-results
+        path: |
+          e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/playwright-results/
+          e2e/e2e/CarvedRock.End2End.Tests/bin/Debug/net9.0/test-results/
+          /tmp/*.log
+        retention-days: 7
