@@ -62,7 +62,7 @@ jobs:
         echo "WebApp started with PID: $(cat /tmp/webapp.pid)"
       env:
         ASPNETCORE_URLS: http://localhost:5224
-        services__apiservice__0: http://localhost:5213
+        CarvedRock__ApiBaseUrl: http://localhost:5213
     
     - name: Wait for services to be ready
       run: |
