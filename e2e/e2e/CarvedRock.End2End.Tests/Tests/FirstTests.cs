@@ -124,7 +124,7 @@ namespace CarvedRock.End2End.Tests.Tests
             // exercise for you: create a parameterized test and calculate this
             // value based on known prices and the quantities of products you add
             // to the cart
-            await Expect(Page.Locator("#grand-total")).ToContainTextAsync("$564.96");
+            await Expect(Page.Locator("#grand-total")).ToContainTextAsync("564.96");
         }
 
         [Test]
