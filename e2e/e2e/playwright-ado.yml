@@ -22,4 +22,4 @@ steps:
     workingDirectory: e2e/e2e/CarvedRock.End2End.Tests
 - script: dotnet test -s ./.runsettings --configuration Release
   displayName: 'Run Tests'
-  workingDirectory: e2e/e2e/CarvedRock.End2End.Tests
+  workingDirectory: e2e/e2e
