@@ -18,7 +18,7 @@ steps:
   displayName: 'Install Playwright Browsers'
   inputs:
     targetType: inline
-    script: ./bin/Debug/net9.0/playwright.ps1 install --with-deps
+    script: ./bin/Release/net9.0/playwright.ps1 install --with-deps
     workingDirectory: e2e/e2e/CarvedRock.End2End.Tests
 - script: dotnet test -s ./.runsettings --configuration Release
   displayName: 'Run Tests'
